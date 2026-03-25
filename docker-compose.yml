@@ -1,0 +1,20 @@
+services:
+  campwatch:
+    build: .
+    container_name: campwatch
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - campwatch_data:/data
+    environment:
+      POLL_INTERVAL_MINUTES: 30
+
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL}
+
+volumes:
+  campwatch_data:

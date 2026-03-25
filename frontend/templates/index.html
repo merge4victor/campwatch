@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampWatch</title>
+<style>
+  :root {
+    --green:  #2d6a4f;
+    --green2: #40916c;
+    --green3: #74c69d;
+    --bg:     #f8faf8;
+    --card:   #ffffff;
+    --border: #d8e8de;
+    --text:   #1b2d22;
+    --muted:  #6b8f71;
+    --red:    #c0392b;
+    --amber:  #e67e22;
+    --avail:  #1a7a4a;
+    --unavail:#888;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--green); color: #fff; padding: 16px 24px;
+           display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: .5px; }
+  header h1 span { opacity: .7; font-weight: 400; font-size: 1rem; margin-left: 8px; }
+  #poll-btn { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+              color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+              font-size: .85rem; transition: background .2s; }
+  #poll-btn:hover { background: rgba(255,255,255,.25); }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 24px; }
+  @media (max-width: 750px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 20px; }
+  .card h2 { font-size: 1rem; font-weight: 600; color: var(--green);
+             margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+  label { display: block; font-size: .82rem; font-weight: 600;
+          color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  label:first-child { margin-top: 0; }
+  input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+                  border-radius: 6px; font-size: .9rem; background: #fff;
+                  color: var(--text); transition: border .2s; }
+  input:focus, select:focus { outline: none; border-color: var(--green2); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px;
+         border: none; border-radius: 7px; cursor: pointer; font-size: .88rem;
+         font-weight: 600; transition: opacity .2s, transform .1s; }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--green2); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--green); }
+  .btn-sm { padding: 5px 10px; font-size: .78rem; font-weight: 600;
+            border-radius: 5px; border: none; cursor: pointer; }
+  .btn-danger  { background: #fde8e8; color: var(--red); }
+  .btn-danger:hover { background: #fbd0d0; }
+  .btn-mute    { background: #fef3e2; color: var(--amber); }
+  .btn-unmute  { background: #e8f5e9; color: var(--green2); }
+  .btn-check   { background: #e8f0fe; color: #1a56db; }
+  .btn-email   { background: #d4f1e4; color: var(--avail); }
+  .btn-email:hover { background: #b7e4cc; }
+  .btn-email:disabled { background: #f0f0f0; color: #bbb; cursor: not-allowed; }
+  .mt { margin-top: 14px; }
+  #lookup-result { font-size: .85rem; color: var(--muted); margin-top: 8px; min-height: 20px; }
+  #lookup-result.ok  { color: var(--avail); }
+  #lookup-result.err { color: var(--red); }
+
+  #watches-list { display: flex; flex-direction: column; gap: 12px; }
+  .watch-card { border: 1px solid var(--border); border-radius: var(--radius);
+                padding: 14px 16px; background: var(--card); }
+  .watch-card.muted { opacity: .55; }
+  .watch-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .watch-title { font-weight: 700; font-size: .95rem; }
+  .watch-sub   { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .watch-dates { font-size: .82rem; margin-top: 6px; }
+  .watch-status { display: inline-block; margin-top: 8px; padding: 3px 9px;
+                  border-radius: 20px; font-size: .75rem; font-weight: 700; }
+  .status-available   { background: #d4f1e4; color: var(--avail); }
+  .status-unavailable { background: #f0f0f0; color: var(--unavail); }
+  .status-error       { background: #fde8e8; color: var(--red); }
+  .status-pending     { background: #fef3e2; color: var(--amber); }
+  .watch-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .watch-meta  { font-size: .73rem; color: var(--muted); margin-top: 6px; }
+  .watch-price { font-weight: 700; color: var(--green); }
+  .empty-state { text-align: center; color: var(--muted); padding: 40px 0; font-size: .9rem; }
+
+  #notif-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+  .notif-item { background: #d4f1e4; border-left: 3px solid var(--avail);
+                border-radius: 6px; padding: 10px 12px; font-size: .85rem; }
+  .notif-time { font-size: .73rem; color: var(--muted); margin-top: 3px; }
+
+  #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999;
+                     display: flex; flex-direction: column; gap: 10px; }
+  .toast { background: var(--green); color: #fff; padding: 14px 18px; border-radius: 10px;
+           max-width: 340px; font-size: .88rem; box-shadow: 0 4px 20px rgba(0,0,0,.2);
+           animation: slideIn .3s ease; }
+  .toast.error { background: var(--red); }
+  .toast-title { font-weight: 700; margin-bottom: 3px; }
+  @keyframes slideIn { from { transform: translateX(120%); opacity: 0; }
+                       to   { transform: translateX(0);    opacity: 1; } }
+
+  #config-strip { font-size: .8rem; color: var(--muted); margin-bottom: 16px;
+                  display: flex; gap: 16px; align-items: center; }
+  .dot { width: 8px; height: 8px; border-radius: 50%;
+         background: var(--green3); display: inline-block; }
+  .dot.red { background: var(--red); }
+
+  .search-wrap { position: relative; flex: 1; }
+  #park-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+                      background: #fff; border: 1px solid var(--border); border-top: none;
+                      border-radius: 0 0 8px 8px; max-height: 220px; overflow-y: auto;
+                      box-shadow: 0 6px 16px rgba(0,0,0,.1); }
+  .sug-item { padding: 9px 12px; cursor: pointer; font-size: .84rem;
+              border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+  .sug-item:last-child { border-bottom: none; }
+  .sug-item:hover { background: var(--bg); }
+  .sug-code { font-weight: 700; color: var(--green); min-width: 40px; }
+  #index-status { font-size: .75rem; color: var(--muted); margin-top: 4px; min-height: 14px; }
+
+  .recipient-row { display: flex; align-items: center; justify-content: space-between;
+                   padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+                   margin-top: 6px; font-size: .85rem; background: #f8faf8; }
+  .recipient-email { flex: 1; }
+  .add-row { display: flex; gap: 8px; margin-top: 10px; }
+  .add-row input { flex: 1; }
+  .btn-test { background: #e8f0fe; color: #1a56db; margin-top: 10px; width: 100%; justify-content: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#127958; CampWatch</h1>
+  <button class="btn" id="poll-btn" onclick="pollNow()">&#9654; Check Now</button>
+</header>
+
+<div id="toast-container"></div>
+
+<main>
+  <div id="config-strip">
+    <span><span class="dot" id="email-dot"></span> Email: <span id="email-status">-</span></span>
+    <span>Poll interval: <strong id="poll-interval">-</strong></span>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>&#10133; Add Watch</h2>
+
+        <label>Search park name, enter code, or paste a GDay Parks URL</label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div class="search-wrap">
+            <input id="inp-code" placeholder="e.g. Yea Riverside, VYEA, or paste URL" autocomplete="off">
+            <div id="park-suggestions" style="display:none"></div>
+          </div>
+          <button class="btn btn-primary" onclick="lookupPark()" id="lookup-btn">Look up</button>
+        </div>
+        <div id="index-status"></div>
+        <div id="lookup-result"></div>
+
+        <div id="acc-section" style="display:none">
+          <label>Accommodation / site type</label>
+          <select id="inp-acc"></select>
+
+          <label>Check-in date</label>
+          <input type="date" id="inp-checkin">
+
+          <label>Check-out date</label>
+          <input type="date" id="inp-checkout">
+
+          <div class="row2">
+            <div>
+              <label>Adults</label>
+              <input type="number" id="inp-adults" value="2" min="1" max="20">
+            </div>
+            <div>
+              <label>Children</label>
+              <input type="number" id="inp-children" value="0" min="0" max="20">
+            </div>
+          </div>
+
+          <button class="btn btn-primary mt" style="width:100%" onclick="addWatch()">Add Watch</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>&#128276; Recent Alerts</h2>
+        <div id="notif-list"><div class="empty-state">No alerts yet</div></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>&#9993; Email Notifications</h2>
+        <div id="smtp-status" style="font-size:.82rem;color:var(--muted);margin-bottom:10px"></div>
+        <div id="recipients-list"></div>
+        <div class="add-row">
+          <input type="email" id="inp-email" placeholder="recipient@example.com">
+          <button class="btn btn-primary" onclick="addRecipient()">Add</button>
+        </div>
+        <button class="btn btn-sm btn-test" id="test-email-btn" onclick="sendTestEmail()">&#9993; Send Test Email</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>&#128065; Active Watches</h2>
+        <div id="watches-list"><div class="empty-state">No watches yet - add one on the left</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let currentParkCode = null;
+let currentParkName = null;
+let currentParkId   = null;
+let _searchTimer    = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  loadWatches();
+  loadNotifications();
+  loadRecipients();
+  connectSSE();
+  pollIndexStatus();
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const dayAfter  = new Date(); dayAfter.setDate(dayAfter.getDate()+2);
+  document.getElementById('inp-checkin').value  = fmt(tomorrow);
+  document.getElementById('inp-checkout').value = fmt(dayAfter);
+
+  const inp = document.getElementById('inp-code');
+  inp.addEventListener('input', onSearchInput);
+  inp.addEventListener('keydown', e => { if (e.key === 'Escape') hideSuggestions(); });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) hideSuggestions();
+  });
+});
+
+function onSearchInput() {
+  const val = this.value.trim();
+  clearTimeout(_searchTimer);
+
+  // URL paste: auto-extract propertyCode
+  if (val.includes('propertyCode=') || val.includes('gdayparks.com.au')) {
+    const m = val.match(/propertyCode=([A-Za-z0-9]+)/);
+    if (m) {
+      this.value = m[1].toUpperCase();
+      hideSuggestions();
+      lookupPark();
+      return;
+    }
+  }
+
+  if (val.length < 2) { hideSuggestions(); return; }
+  _searchTimer = setTimeout(() => fetchSuggestions(val), 280);
+}
+
+async function fetchSuggestions(q) {
+  try {
+    const results = await api('/api/parks/search?q=' + encodeURIComponent(q));
+    if (!results.length) { hideSuggestions(); return; }
+    const el = document.getElementById('park-suggestions');
+    el.innerHTML = results.map(p =>
+      '<div class="sug-item" onmousedown="selectSuggestion(\'' + p.code + '\',\'' + p.name.replace(/'/g,"\\'") + '\')">' +
+        '<span class="sug-code">' + p.code + '</span>' +
+        '<span>' + p.name + '</span>' +
+      '</div>'
+    ).join('');
+    el.style.display = 'block';
+  } catch(e) { hideSuggestions(); }
+}
+
+function selectSuggestion(code, name) {
+  document.getElementById('inp-code').value = code;
+  hideSuggestions();
+  lookupPark();
+}
+
+function hideSuggestions() {
+  document.getElementById('park-suggestions').style.display = 'none';
+}
+
+async function pollIndexStatus() {
+  const el = document.getElementById('index-status');
+  try {
+    const s = await api('/api/parks/index/status');
+    if (s.state === 'building') {
+      el.textContent = 'Building search index: ' + s.indexed + '/' + s.total + ' parks indexed…';
+      setTimeout(pollIndexStatus, 3000);
+    } else if (s.state === 'ready') {
+      el.textContent = s.indexed + ' parks in search index';
+    } else if (s.state === 'error') {
+      el.textContent = 'Search index unavailable — use exact park code';
+    }
+  } catch(e) {}
+}
+
+function fmt(d) { return d.toISOString().split('T')[0]; }
+
+async function loadConfig() {
+  const c = await api('/api/config');
+  document.getElementById('poll-interval').textContent = c.poll_interval_minutes + ' min';
+  const dot = document.getElementById('email-dot');
+  const lbl = document.getElementById('email-status');
+  if (c.email_configured) {
+    dot.classList.remove('red');
+    lbl.textContent = c.smtp_user;
+  } else {
+    dot.classList.add('red');
+    lbl.textContent = 'Not configured (set SMTP env vars)';
+  }
+  document.getElementById('smtp-status').textContent = c.email_configured
+    ? 'Sending via ' + c.smtp_user
+    : 'SMTP not configured — set SMTP_USER and SMTP_PASS env vars';
+}
+
+async function loadRecipients() {
+  const items = await api('/api/recipients');
+  const el = document.getElementById('recipients-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:12px 0">No recipients yet</div>';
+    return;
+  }
+  el.innerHTML = items.map(r =>
+    '<div class="recipient-row">' +
+      '<span class="recipient-email">' + r.email + '</span>' +
+      '<button class="btn-sm btn-danger" onclick="deleteRecipient(' + r.id + ')">Remove</button>' +
+    '</div>'
+  ).join('');
+}
+
+async function addRecipient() {
+  const inp = document.getElementById('inp-email');
+  const email = inp.value.trim();
+  if (!email) return;
+  try {
+    await api('/api/recipients', 'POST', { email });
+    inp.value = '';
+    loadRecipients();
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function deleteRecipient(id) {
+  await api('/api/recipients/' + id, 'DELETE');
+  loadRecipients();
+}
+
+async function sendTestEmail() {
+  const btn = document.getElementById('test-email-btn');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const res = await api('/api/test-email', 'POST');
+    toast('Test email sent to: ' + res.sent_to.join(', '));
+  } catch(e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✉ Send Test Email';
+  }
+}
+
+async function lookupPark() {
+  let raw = document.getElementById('inp-code').value.trim();
+  // URL paste fallback
+  if (raw.includes('propertyCode=')) {
+    const m = raw.match(/propertyCode=([A-Za-z0-9]+)/);
+    if (m) raw = m[1];
+  }
+  const code = raw.toUpperCase();
+  if (!code) return;
+  const el = document.getElementById('lookup-result');
+  el.className = ''; el.textContent = 'Looking up...';
+  document.getElementById('lookup-btn').disabled = true;
+  try {
+    const data = await api('/api/parks/lookup?code=' + code);
+    currentParkCode = code;
+    currentParkName = data.name;
+    el.className = 'ok';
+    el.textContent = 'Found: ' + data.name + ' - ' + data.accommodations.length + ' accommodation types';
+    const sel = document.getElementById('inp-acc');
+    sel.innerHTML = '';
+    data.accommodations.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify(a);
+      opt.textContent = a.name + ' (' + (a.subTypeDisplayName || a.subType) + ')';
+      sel.appendChild(opt);
+    });
+    document.getElementById('acc-section').style.display = 'block';
+    await ensureParkExists(code, data.name);
+  } catch(e) {
+    el.className = 'err';
+    el.textContent = 'Error: ' + (e.message || 'Park not found');
+    document.getElementById('acc-section').style.display = 'none';
+  } finally {
+    document.getElementById('lookup-btn').disabled = false;
+  }
+}
+
+async function ensureParkExists(code, name) {
+  const parks = await api('/api/parks');
+  const existing = parks.find(p => p.park_code === code);
+  if (existing) { currentParkId = existing.id; return; }
+  const res = await api('/api/parks', 'POST', { name, park_code: code, network: 'gday' });
+  currentParkId = res.id;
+}
+
+async function addWatch() {
+  if (!currentParkId) { toast('Look up a park first', 'error'); return; }
+  const accRaw = document.getElementById('inp-acc').value;
+  if (!accRaw) { toast('Select an accommodation type', 'error'); return; }
+  const acc = JSON.parse(accRaw);
+  const checkIn  = document.getElementById('inp-checkin').value;
+  const checkOut = document.getElementById('inp-checkout').value;
+  if (!checkIn || !checkOut || checkIn >= checkOut) {
+    toast('Check-out must be after check-in', 'error'); return;
+  }
+  await api('/api/watches', 'POST', {
+    park_id: currentParkId,
+    accommodation_code: acc.code,
+    accommodation_name: acc.name,
+    site_subtype: acc.subType,
+    check_in: checkIn,
+    check_out: checkOut,
+    adults:   parseInt(document.getElementById('inp-adults').value)   || 2,
+    children: parseInt(document.getElementById('inp-children').value) || 0,
+  });
+  toast('Watch added for ' + acc.name);
+  // Reset form so another watch can be added
+  currentParkCode = null; currentParkName = null; currentParkId = null;
+  document.getElementById('inp-code').value = '';
+  document.getElementById('lookup-result').className = '';
+  document.getElementById('lookup-result').textContent = '';
+  document.getElementById('acc-section').style.display = 'none';
+  loadWatches();
+}
+
+async function loadWatches() {
+  const watches = await api('/api/watches');
+  const el = document.getElementById('watches-list');
+  if (!watches.length) {
+    el.innerHTML = '<div class="empty-state">No watches yet - add one on the left</div>';
+    return;
+  }
+  el.innerHTML = watches.map(w => {
+    const status = w.last_status || 'pending';
+    const labels = {
+      available:   'Available',
+      unavailable: 'Unavailable',
+      error:       'Error',
+      pending:     'Not checked yet',
+    };
+    const checked = w.last_checked
+      ? new Date(w.last_checked + 'Z').toLocaleString('en-AU', {timeZone:'Australia/Melbourne'})
+      : 'Never';
+    const price     = w.last_price ? ' - $' + w.last_price.toFixed(0) + ' total' : '';
+    const muteLabel = w.muted ? 'Unmute' : 'Mute';
+    const muteCls   = w.muted ? 'btn-unmute' : 'btn-mute';
+    const countStr  = w.last_count ? ' (' + w.last_count + ' free)' : '';
+    return '<div class="watch-card ' + (w.muted ? 'muted' : '') + '">' +
+      '<div class="watch-header">' +
+        '<div>' +
+          '<div class="watch-title">' + w.park_name + '</div>' +
+          '<div class="watch-sub">' + w.accommodation_name + '</div>' +
+        '</div>' +
+        '<div class="watch-actions">' +
+          '<button class="btn-sm btn-check" onclick="forceCheck(' + w.id + ')">Check</button>' +
+          '<button class="btn-sm ' + muteCls + '" onclick="toggleMute(' + w.id + ')">' + muteLabel + '</button>' +
+          '<button class="btn-sm btn-email" onclick="emailWatch(' + w.id + ')"' + (status !== 'available' ? ' disabled title="Only available when site is available"' : '') + '>&#9993; Email</button>' +
+          '<button class="btn-sm btn-danger" onclick="deleteWatch(' + w.id + ')">Remove</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="watch-dates">Dates: ' + w.check_in + ' to ' + w.check_out +
+        ' | Adults: ' + w.adults + (w.children ? ', Children: ' + w.children : '') + '</div>' +
+      '<span class="watch-status status-' + status + '">' + labels[status] + price + countStr + '</span>' +
+      '<div class="watch-meta">Last checked: ' + checked + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function deleteWatch(id) {
+  if (!confirm('Remove this watch?')) return;
+  await api('/api/watches/' + id, 'DELETE');
+  loadWatches();
+}
+
+async function toggleMute(id) {
+  await api('/api/watches/' + id + '/mute', 'POST');
+  loadWatches();
+}
+
+async function emailWatch(id) {
+  try {
+    const res = await api('/api/watches/' + id + '/notify', 'POST');
+    toast('Email sent to: ' + res.sent_to.join(', '));
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function forceCheck(id) {
+  try {
+    const res = await api('/api/watches/' + id + '/check', 'POST');
+    const msg = res.status === 'available'
+      ? 'Available' + (res.price ? ' - $' + Math.round(res.price) + ' total' : '') + (res.count ? ' (' + res.count + ' free)' : '')
+      : 'Not available';
+    toast(msg);
+    loadWatches();
+  } catch(e) {
+    toast('Check failed: ' + e.message, 'error');
+  }
+}
+
+async function pollNow() {
+  const btn = document.getElementById('poll-btn');
+  btn.disabled = true; btn.textContent = 'Checking...';
+  await api('/api/poll/now', 'POST');
+  setTimeout(() => {
+    loadWatches();
+    loadNotifications();
+    btn.disabled = false; btn.textContent = 'Check Now';
+  }, 3000);
+}
+
+async function loadNotifications() {
+  const items = await api('/api/notifications');
+  const el = document.getElementById('notif-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state">No alerts yet</div>';
+    return;
+  }
+  el.innerHTML = items.map(n =>
+    '<div class="notif-item">' +
+      '<strong>' + n.park_name + '</strong> - ' + n.accommodation_name + '<br>' +
+      n.check_in + ' to ' + n.check_out +
+      (n.price ? ' | $' + Math.round(n.price) + ' total' : '') +
+      (n.count  ? ' | ' + n.count + ' free' : '') +
+      '<div class="notif-time">' +
+        new Date(n.sent_at + 'Z').toLocaleString('en-AU', {timeZone:'Australia/Melbourne'}) +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function connectSSE() {
+  const es = new EventSource('/api/events');
+  es.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'connected') return;
+    if (Notification.permission === 'granted') {
+      new Notification('CampWatch - Site Available!', { body: data.message });
+    }
+    toast(data.message, 'success', 8000);
+    loadWatches();
+    loadNotifications();
+  };
+  es.onerror = () => setTimeout(connectSSE, 5000);
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'HTTP ' + res.status);
+  }
+  return res.json();
+}
+
+function toast(msg, type='success', duration=4000) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type === 'error' ? ' error' : '');
+  t.innerHTML = '<div class="toast-title">' + (type === 'error' ? 'Error' : 'CampWatch') + '</div>' + msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), duration);
+}
+</script>
+</body>
+</html>
